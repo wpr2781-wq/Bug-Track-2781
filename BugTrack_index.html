@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BugTrack — Bug Tracking System</title>
+  <style>
+    /* ─── RESET & BASE ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:        #0f1117;
+      --surface:   #1a1d27;
+      --surface2:  #22263a;
+      --border:    #2e3350;
+      --text:      #e2e8f0;
+      --muted:     #8892a4;
+      --accent:    #6c63ff;
+      --accent2:   #a78bfa;
+      --open:      #FFA502;
+      --resolved:  #2ED573;
+      --overdue:   #FF4757;
+      --low:       #2ED573;
+      --medium:    #FFA502;
+      --high:      #FF4757;
+      --radius:    10px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+    /* ─── LAYOUT ───────────────────────────────────────────────── */
+    .app { display: flex; min-height: 100vh; }
+    .sidebar {
+      width: 230px; background: var(--surface); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; padding: 24px 0; flex-shrink: 0;
+    }
+    .sidebar-logo { padding: 0 20px 24px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+    .sidebar-logo h1 { font-size: 20px; font-weight: 700; color: var(--accent2); letter-spacing: -0.5px; }
+    .sidebar-logo p { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px; padding: 10px 20px;
+      cursor: pointer; color: var(--muted); font-size: 14px; transition: all .15s;
+      border-left: 3px solid transparent;
+    }
+    .nav-item:hover { color: var(--text); background: var(--surface2); }
+    .nav-item.active { color: var(--accent2); background: var(--surface2); border-left-color: var(--accent); }
+    .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .topbar {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 16px 28px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .topbar h2 { font-size: 18px; font-weight: 600; }
+    .page { display: none; padding: 28px; overflow-y: auto; flex: 1; }
+    .page.active { display: block; }
+
+    /* ─── BUTTONS ──────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border-radius: 7px; font-size: 13px; font-weight: 600;
+      cursor: pointer; border: none; transition: all .15s; white-space: nowrap;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: #5a52e0; }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: var(--border); }
+    .btn-danger { background: rgba(255,71,87,.15); color: var(--overdue); border: 1px solid rgba(255,71,87,.3); }
+    .btn-danger:hover { background: rgba(255,71,87,.25); }
+    .btn-success { background: rgba(46,213,115,.15); color: var(--resolved); border: 1px solid rgba(46,213,115,.3); }
+    .btn-success:hover { background: rgba(46,213,115,.25); }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+    /* ─── PILLS / BADGES ───────────────────────────────────────── */
+    .pill {
+      display: inline-flex; align-items: center; padding: 3px 10px;
+      border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+    }
+    .pill-open     { background: rgba(255,165,2,.15);   color: var(--open);     border: 1px solid rgba(255,165,2,.3); }
+    .pill-resolved { background: rgba(46,213,115,.15);  color: var(--resolved); border: 1px solid rgba(46,213,115,.3); }
+    .pill-overdue  { background: rgba(255,71,87,.15);   color: var(--overdue);  border: 1px solid rgba(255,71,87,.3); }
+    .pill-low      { background: rgba(46,213,115,.15);  color: var(--low);      border: 1px solid rgba(46,213,115,.3); }
+    .pill-medium   { background: rgba(255,165,2,.15);   color: var(--medium);   border: 1px solid rgba(255,165,2,.3); }
+    .pill-high     { background: rgba(255,71,87,.15);   color: var(--high);     border: 1px solid rgba(255,71,87,.3); }
+    .badge-id {
+      background: rgba(108,99,255,.2); color: var(--accent2); border: 1px solid rgba(108,99,255,.4);
+      padding: 3px 8px; border-radius: 5px; font-size: 12px; font-weight: 700; font-family: monospace;
+    }
+
+    /* ─── CARDS & PANELS ───────────────────────────────────────── */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .section-header h3 { font-size: 16px; font-weight: 600; }
+
+    /* ─── STATS DASHBOARD ──────────────────────────────────────── */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 28px; }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 20px; text-align: center; position: relative; overflow: hidden;
+    }
+    .stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background: var(--accent); }
+    .stat-card.open::before    { background: var(--open); }
+    .stat-card.resolved::before{ background: var(--resolved); }
+    .stat-card.overdue::before { background: var(--overdue); }
+    .stat-card.high::before    { background: var(--high); }
+    .stat-num { font-size: 36px; font-weight: 800; margin-bottom: 4px; }
+    .stat-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+
+    /* ─── KANBAN ───────────────────────────────────────────────── */
+    .kanban { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+    .kanban-col { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+    .kanban-col-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 14px; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+    }
+    .col-count {
+      background: var(--border); color: var(--muted); border-radius: 20px;
+      padding: 1px 8px; font-size: 11px;
+    }
+    .kanban-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      padding: 12px; margin-bottom: 10px; cursor: pointer; transition: all .15s;
+      border-left: 3px solid var(--accent);
+    }
+    .kanban-card:hover { border-color: var(--accent2); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.3); }
+    .kanban-card.high   { border-left-color: var(--high); }
+    .kanban-card.medium { border-left-color: var(--medium); }
+    .kanban-card.low    { border-left-color: var(--low); }
+    .kanban-card-title  { font-size: 13px; font-weight: 600; margin-bottom: 8px; line-height: 1.4; }
+    .kanban-card-meta   { display: flex; align-items: center; justify-content: space-between; }
+    .avatar {
+      width: 24px; height: 24px; border-radius: 50%; background: var(--accent);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 700; color: #fff; flex-shrink: 0;
+    }
+
+    /* ─── TABLE ────────────────────────────────────────────────── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { background: var(--surface2); color: var(--muted); text-transform: uppercase; font-size: 11px; letter-spacing: .5px; padding: 10px 14px; text-align: left; }
+    td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:hover td { background: var(--surface2); cursor: pointer; }
+    tr:last-child td { border-bottom: none; }
+
+    /* ─── FORM CONTROLS ────────────────────────────────────────── */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group.full { grid-column: 1 / -1; }
+    label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+    input, textarea, select {
+      background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+      border-radius: 7px; padding: 9px 12px; font-size: 13px; font-family: inherit; width: 100%;
+    }
+    input:focus, textarea:focus, select:focus {
+      outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(108,99,255,.15);
+    }
+    textarea { resize: vertical; min-height: 80px; }
+    select option { background: var(--surface2); }
+    .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+    /* ─── MODAL ────────────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.7); backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px;
+      opacity: 0; pointer-events: none; transition: opacity .2s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+      width: 100%; max-width: 680px; max-height: 90vh; overflow-y: auto;
+      transform: scale(.96) translateY(10px); transition: transform .2s;
+    }
+    .modal-overlay.open .modal { transform: scale(1) translateY(0); }
+    .modal-header {
+      padding: 20px 24px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+    }
+    .modal-header-title h2 { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+    .modal-header-badges { display: flex; gap: 8px; flex-wrap: wrap; }
+    .modal-close {
+      background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+      border-radius: 7px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; flex-shrink: 0; font-size: 16px; transition: all .15s;
+    }
+    .modal-close:hover { color: var(--text); border-color: var(--accent); }
+    .modal-body { padding: 24px; }
+    .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+
+    /* detail fields */
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+    .detail-field { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+    .detail-field:nth-child(odd) { border-right: 1px solid var(--border); }
+    .detail-field.full { grid-column: 1/-1; border-right: none; }
+    .detail-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 5px; font-weight: 600; }
+    .detail-value { font-size: 14px; }
+    .detail-value.desc { font-size: 13px; line-height: 1.6; color: var(--muted); background: var(--surface2); border-radius: 6px; padding: 10px 12px; margin-top: 4px; }
+    .detail-value.overdue-date { color: var(--overdue); font-weight: 600; }
+
+    /* ─── PEOPLE PAGE ──────────────────────────────────────────── */
+    .people-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+    .person-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 20px; text-align: center;
+    }
+    .person-avatar {
+      width: 56px; height: 56px; border-radius: 50%; background: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 700; margin: 0 auto 12px; color: #fff;
+    }
+    .person-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .person-role { font-size: 12px; color: var(--muted); }
+
+    /* ─── TOAST NOTIFICATION ───────────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 24px; right: 24px; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 10px; padding: 14px 20px;
+      display: flex; align-items: center; gap: 10px; font-size: 13px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.4); z-index: 2000;
+      transform: translateY(80px); opacity: 0; transition: all .3s;
+    }
+    #toast.show { transform: translateY(0); opacity: 1; }
+    #toast.success { border-left: 4px solid var(--resolved); }
+    #toast.error   { border-left: 4px solid var(--overdue); }
+
+    /* ─── MISC ─────────────────────────────────────────────────── */
+    .empty-state { text-align: center; padding: 48px 20px; color: var(--muted); }
+    .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+    .empty-state p { font-size: 14px; }
+    .search-bar { position: relative; }
+    .search-bar input { padding-left: 36px; }
+    .search-bar::before { content: '🔍'; position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 13px; }
+    .filter-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+    .filter-bar input, .filter-bar select { flex: 1; min-width: 120px; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+    .text-muted { color: var(--muted); }
+    .mt-16 { margin-top: 16px; }
+    .flex-gap { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════ APP SHELL -->
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <h1>🐞 BugTrack</h1>
+      <p>Web Programming 27(8)1</p>
+    </div>
+    <div class="nav-item active" onclick="navigate('dashboard')">
+      <span class="nav-icon">📊</span> Dashboard
+    </div>
+    <div class="nav-item" onclick="navigate('issues')">
+      <span class="nav-icon">🐛</span> Issues
+    </div>
+    <div class="nav-item" onclick="navigate('create')">
+      <span class="nav-icon">➕</span> New Issue
+    </div>
+    <div class="nav-item" onclick="navigate('people')">
+      <span class="nav-icon">👥</span> People
+    </div>
+    <div class="nav-item" onclick="navigate('projects')">
+      <span class="nav-icon">📁</span> Projects
+    </div>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <div class="main">
+    <div class="topbar">
+      <h2 id="page-title">Dashboard</h2>
+      <div class="flex-gap">
+        <span class="text-muted" style="font-size:12px">Member 4 — Integration &amp; Presentation Lead</span>
+        <button class="btn btn-primary btn-sm" onclick="navigate('create')">+ New Issue</button>
+      </div>
+    </div>
+
+    <!-- ── PAGE: DASHBOARD ──────────────────────────────────────── -->
+    <div class="page active" id="page-dashboard">
+      <div class="stats-grid" id="stats-grid"></div>
+      <div class="card">
+        <div class="section-header">
+          <h3>📋 Kanban Board</h3>
+          <span class="text-muted" style="font-size:12px">Click any card to view details</span>
+        </div>
+        <div class="kanban" id="kanban-board"></div>
+      </div>
+    </div>
+
+    <!-- ── PAGE: ISSUES TABLE ───────────────────────────────────── -->
+    <div class="page" id="page-issues">
+      <div class="filter-bar">
+        <div class="search-bar" style="flex:2;min-width:180px">
+          <input type="text" id="search-input" placeholder="Search issues…" oninput="renderIssuesTable()">
+        </div>
+        <select id="filter-status" onchange="renderIssuesTable()">
+          <option value="">All Statuses</option>
+          <option value="open">Open</option>
+          <option value="resolved">Resolved</option>
+          <option value="overdue">Overdue</option>
+        </select>
+        <select id="filter-priority" onchange="renderIssuesTable()">
+          <option value="">All Priorities</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="navigate('create')">+ New Issue</button>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table id="issues-table">
+            <thead>
+              <tr>
+                <th>ID</th><th>Summary</th><th>Project</th><th>Assignee</th>
+                <th>Status</th><th>Priority</th><th>Target Date</th>
+              </tr>
+            </thead>
+            <tbody id="issues-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PAGE: CREATE ISSUE ───────────────────────────────────── -->
+    <div class="page" id="page-create">
+      <div class="card" style="max-width:720px">
+        <h3 style="margin-bottom:20px">Create New Issue</h3>
+        <div class="form-grid" id="create-form">
+          <div class="form-group full">
+            <label>Summary *</label>
+            <input type="text" id="c-summary" placeholder="Short description of the issue" required>
+          </div>
+          <div class="form-group full">
+            <label>Detailed Description</label>
+            <textarea id="c-desc" placeholder="Full details, steps to reproduce, expected vs actual…"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Project *</label>
+            <select id="c-project">
+              <option value="">Select project…</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Reporter *</label>
+            <select id="c-reporter">
+              <option value="">Select reporter…</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Assigned To</label>
+            <select id="c-assignee">
+              <option value="">Unassigned</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select id="c-status">
+              <option value="open">Open</option>
+              <option value="overdue">Overdue</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Priority</label>
+            <select id="c-priority">
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Date Identified</label>
+            <input type="date" id="c-date-identified">
+          </div>
+          <div class="form-group">
+            <label>Target Resolution Date</label>
+            <input type="date" id="c-target-date">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-secondary" onclick="navigate('dashboard')">Cancel</button>
+          <button class="btn btn-primary" onclick="createIssue()">Create Issue</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PAGE: PEOPLE ─────────────────────────────────────────── -->
+    <div class="page" id="page-people">
+      <div class="section-header">
+        <h3>Team Members</h3>
+        <button class="btn btn-primary btn-sm" onclick="addPersonPrompt()">+ Add Person</button>
+      </div>
+      <div class="people-grid" id="people-grid"></div>
+    </div>
+
+    <!-- ── PAGE: PROJECTS ───────────────────────────────────────── -->
+    <div class="page" id="page-projects">
+      <div class="section-header">
+        <h3>Projects</h3>
+        <button class="btn btn-primary btn-sm" onclick="addProjectPrompt()">+ Add Project</button>
+      </div>
+      <div id="projects-list"></div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ═══════════════════════════════════════════════════════════════ DETAIL VIEW MODAL (D2) -->
+<div class="modal-overlay" id="detail-modal" onclick="closeDetailModal(event)">
+  <div class="modal" id="detail-modal-inner">
+    <div class="modal-header">
+      <div class="modal-header-title">
+        <h2 id="dm-summary">—</h2>
+        <div class="modal-header-badges" id="dm-badges"></div>
+      </div>
+      <button class="modal-close" onclick="closeDetailModalDirect()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="detail-grid" id="dm-fields"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeDetailModalDirect()">Close</button>
+      <button class="btn btn-primary" id="dm-edit-btn" onclick="openEditFromDetail()">✏️ Edit Issue</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ EDIT MODAL (D3) -->
+<div class="modal-overlay" id="edit-modal" onclick="closeEditModal(event)">
+  <div class="modal" id="edit-modal-inner">
+    <div class="modal-header">
+      <div class="modal-header-title">
+        <h2>Edit Issue</h2>
+        <div id="em-id-badge"></div>
+      </div>
+      <button class="modal-close" onclick="closeEditModalDirect()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Summary *</label>
+          <input type="text" id="e-summary">
+        </div>
+        <div class="form-group full">
+          <label>Detailed Description</label>
+          <textarea id="e-desc"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Assigned To</label>
+          <select id="e-assignee"></select>
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select id="e-status">
+            <option value="open">Open</option>
+            <option value="resolved">Resolved</option>
+            <option value="overdue">Overdue</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Priority</label>
+          <select id="e-priority">
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Target Resolution Date</label>
+          <input type="date" id="e-target-date">
+        </div>
+        <div class="form-group">
+          <label>Actual Resolution Date</label>
+          <input type="date" id="e-actual-date">
+        </div>
+        <div class="form-group full">
+          <label>Resolution Summary</label>
+          <textarea id="e-resolution" placeholder="What was done to resolve this issue?"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeEditModalDirect()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEdit()">💾 Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ TOAST -->
+<div id="toast">
+  <span id="toast-icon">✅</span>
+  <span id="toast-msg">Saved!</span>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ JAVASCRIPT -->
+<script>
+
+/* ────────────────────────────────────────────────────────────────
+   DATA LAYER — localStorage persistence
+   ──────────────────────────────────────────────────────────────── */
+const LS_ISSUES   = 'bt_issues';
+const LS_PEOPLE   = 'bt_people';
+const LS_PROJECTS = 'bt_projects';
+
+function load(key)        { try { return JSON.parse(localStorage.getItem(key)) || []; } catch { return []; } }
+function save(key, data)  { localStorage.setItem(key, JSON.stringify(data)); }
+
+function getIssues()   { return load(LS_ISSUES);   }
+function getPeople()   { return load(LS_PEOPLE);   }
+function getProjects() { return load(LS_PROJECTS); }
+function saveIssues(d)   { save(LS_ISSUES, d);   }
+function savePeople(d)   { save(LS_PEOPLE, d);   }
+function saveProjects(d) { save(LS_PROJECTS, d); }
+
+/* ────────────────────────────────────────────────────────────────
+   SEED DATA — demo data on first load
+   ──────────────────────────────────────────────────────────────── */
+function seedIfEmpty() {
+  if (!getProjects().length) {
+    saveProjects([
+      { id: 'P1', name: 'BugTrack Core',       description: 'Main bug tracking application' },
+      { id: 'P2', name: 'Portal Frontend',      description: 'Client-facing UI components'   },
+      { id: 'P3', name: 'API Gateway',          description: 'Backend REST API layer'         },
+    ]);
+  }
+  if (!getPeople().length) {
+    savePeople([
+      { id: 'U1', name: 'Alice Mokoena',   role: 'Frontend Developer',  initials: 'AM' },
+      { id: 'U2', name: 'Brian Dlamini',   role: 'Backend Developer',   initials: 'BD' },
+      { id: 'U3', name: 'Chloe Nkosi',     role: 'UI/UX Designer',      initials: 'CN' },
+      { id: 'U4', name: 'David van Wyk',   role: 'QA Engineer',         initials: 'DV' },
+      { id: 'U5', name: 'Emely Botha',     role: 'Project Manager',     initials: 'EB' },
+    ]);
+  }
+  if (!getIssues().length) {
+    const today = new Date();
+    const fmt = d => d.toISOString().split('T')[0];
+    const daysFrom = n => { const d = new Date(); d.setDate(d.getDate()+n); return fmt(d); };
+    saveIssues([
+      { id:'BT-001', summary:'Login form does not validate email format',    description:'When a user enters an invalid email address (e.g. "user@") the form submits without showing an error message.', project:'P1', reporter:'U4', assignee:'U1', status:'open',     priority:'high',   dateIdentified: fmt(today), targetDate: daysFrom(3),  actualDate:'', resolution:'' },
+      { id:'BT-002', summary:'Kanban cards lose colour after page refresh',  description:'Priority colour on Kanban cards resets to default purple after a browser refresh even though the correct priority is stored in localStorage.', project:'P1', reporter:'U1', assignee:'U2', status:'open',     priority:'medium', dateIdentified: fmt(today), targetDate: daysFrom(5),  actualDate:'', resolution:'' },
+      { id:'BT-003', summary:'API returns 500 on empty search query',        description:'Calling GET /api/issues?q= with an empty query string triggers an unhandled exception on the server.', project:'P3', reporter:'U2', assignee:'U2', status:'resolved',  priority:'high',   dateIdentified: fmt(today), targetDate: daysFrom(-3), actualDate: fmt(today), resolution:'Added early-return guard for empty query strings in the search handler.' },
+      { id:'BT-004', summary:'People dropdown shows duplicate entries',      description:'If a person is added twice to localStorage the dropdown in the Create Issue form shows them twice.', project:'P1', reporter:'U3', assignee:'U1', status:'overdue',   priority:'medium', dateIdentified: fmt(today), targetDate: daysFrom(-2), actualDate:'', resolution:'' },
+      { id:'BT-005', summary:'Statistics counter not updating in real time', description:'The open/resolved/overdue count on the dashboard does not refresh when an issue is edited unless the user navigates away and back.', project:'P1', reporter:'U5', assignee:'U3', status:'open',     priority:'low',    dateIdentified: fmt(today), targetDate: daysFrom(7),  actualDate:'', resolution:'' },
+      { id:'BT-006', summary:'Date picker cuts off on small screens',        description:'On screens narrower than 480px the date picker widget overflows its container and is partially hidden.', project:'P2', reporter:'U3', assignee:'U3', status:'open',     priority:'low',    dateIdentified: fmt(today), targetDate: daysFrom(10), actualDate:'', resolution:'' },
+    ]);
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────
+   BUSINESS LOGIC (D4 / D5) — status & priority
+   ──────────────────────────────────────────────────────────────── */
+function applyOverdueLogic() {
+  // D4: On load, mark open issues past target date as overdue
+  const today = new Date(); today.setHours(0,0,0,0);
+  const issues = getIssues();
+  let changed = false;
+  issues.forEach(i => {
+    if (i.status === 'open' && i.targetDate) {
+      const t = new Date(i.targetDate); t.setHours(0,0,0,0);
+      if (t < today) { i.status = 'overdue'; changed = true; }
+    }
+  });
+  if (changed) saveIssues(issues);
+}
+
+function pillStatus(s)   { return `<span class="pill pill-${s}">${s}</span>`; }
+function pillPriority(p) { return `<span class="pill pill-${p}">${p}</span>`; }
+
+function fmtDate(d) {
+  if (!d) return '—';
+  const dt = new Date(d + 'T00:00:00');
+  return dt.toLocaleDateString('en-ZA', { day:'2-digit', month:'short', year:'numeric' });
+}
+
+function isOverdueDate(d) {
+  if (!d) return false;
+  const t = new Date(d + 'T00:00:00'); t.setHours(0,0,0,0);
+  const today = new Date(); today.setHours(0,0,0,0);
+  return t < today;
+}
+
+function personName(id) {
+  const p = getPeople().find(x => x.id === id);
+  return p ? p.name : '—';
+}
+function personInitials(id) {
+  const p = getPeople().find(x => x.id === id);
+  return p ? p.initials : '?';
+}
+function projectName(id) {
+  const p = getProjects().find(x => x.id === id);
+  return p ? p.name : '—';
+}
+function nextId() {
+  const issues = getIssues();
+  if (!issues.length) return 'BT-001';
+  const nums = issues.map(i => parseInt(i.id.replace('BT-',''))).filter(n => !isNaN(n));
+  return 'BT-' + String(Math.max(...nums) + 1).padStart(3,'0');
+}
+
+/* ────────────────────────────────────────────────────────────────
+   NAVIGATION
+   ──────────────────────────────────────────────────────────────── */
+const TITLES = { dashboard:'Dashboard', issues:'All Issues', create:'New Issue', people:'People', projects:'Projects' };
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.getAttribute('onclick')?.includes(`'${page}'`)) n.classList.add('active');
+  });
+  document.getElementById('page-title').textContent = TITLES[page] || page;
+  if (page === 'dashboard') { renderStats(); renderKanban(); }
+  if (page === 'issues')    { renderIssuesTable(); }
+  if (page === 'create')    { populateCreateForm(); }
+  if (page === 'people')    { renderPeople(); }
+  if (page === 'projects')  { renderProjects(); }
+}
+
+/* ────────────────────────────────────────────────────────────────
+   STATS DASHBOARD (D6)
+   ──────────────────────────────────────────────────────────────── */
+function renderStats() {
+  const issues = getIssues();
+  const total    = issues.length;
+  const open     = issues.filter(i => i.status === 'open').length;
+  const resolved = issues.filter(i => i.status === 'resolved').length;
+  const overdue  = issues.filter(i => i.status === 'overdue').length;
+  const highP    = issues.filter(i => i.priority === 'high').length;
+  document.getElementById('stats-grid').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-num">${total}</div>
+      <div class="stat-label">Total Issues</div>
+    </div>
+    <div class="stat-card open">
+      <div class="stat-num" style="color:var(--open)">${open}</div>
+      <div class="stat-label">Open</div>
+    </div>
+    <div class="stat-card resolved">
+      <div class="stat-num" style="color:var(--resolved)">${resolved}</div>
+      <div class="stat-label">Resolved</div>
+    </div>
+    <div class="stat-card overdue">
+      <div class="stat-num" style="color:var(--overdue)">${overdue}</div>
+      <div class="stat-label">Overdue</div>
+    </div>
+    <div class="stat-card high">
+      <div class="stat-num" style="color:var(--high)">${highP}</div>
+      <div class="stat-label">High Priority</div>
+    </div>
+  `;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   KANBAN BOARD
+   ──────────────────────────────────────────────────────────────── */
+function renderKanban() {
+  const issues = getIssues();
+  const cols = { open: [], resolved: [], overdue: [] };
+  issues.forEach(i => { if (cols[i.status]) cols[i.status].push(i); });
+
+  const colConfig = [
+    { key:'open',     label:'Open',     emoji:'🔵' },
+    { key:'resolved', label:'Resolved', emoji:'🟢' },
+    { key:'overdue',  label:'Overdue',  emoji:'🔴' },
+  ];
+
+  document.getElementById('kanban-board').innerHTML = colConfig.map(c => `
+    <div class="kanban-col">
+      <div class="kanban-col-header">
+        <span>${c.emoji} ${c.label}</span>
+        <span class="col-count">${cols[c.key].length}</span>
+      </div>
+      ${cols[c.key].length === 0
+        ? `<div class="empty-state" style="padding:24px 12px"><p>No ${c.label.toLowerCase()} issues</p></div>`
+        : cols[c.key].map(i => `
+        <div class="kanban-card ${i.priority}" onclick="openDetail('${i.id}')">
+          <div class="kanban-card-title">${escHtml(i.summary)}</div>
+          <div class="kanban-card-meta">
+            <span class="badge-id">${i.id}</span>
+            <div class="flex-gap" style="gap:6px">
+              ${pillPriority(i.priority)}
+              ${i.assignee ? `<div class="avatar" title="${personName(i.assignee)}">${personInitials(i.assignee)}</div>` : ''}
+            </div>
+          </div>
+        </div>`).join('')}
+    </div>
+  `).join('');
+}
+
+/* ────────────────────────────────────────────────────────────────
+   ISSUES TABLE
+   ──────────────────────────────────────────────────────────────── */
+function renderIssuesTable() {
+  let issues = getIssues();
+  const q  = (document.getElementById('search-input')?.value || '').toLowerCase();
+  const fs = document.getElementById('filter-status')?.value || '';
+  const fp = document.getElementById('filter-priority')?.value || '';
+  if (q)  issues = issues.filter(i => i.summary.toLowerCase().includes(q) || i.id.toLowerCase().includes(q));
+  if (fs) issues = issues.filter(i => i.status === fs);
+  if (fp) issues = issues.filter(i => i.priority === fp);
+
+  const tbody = document.getElementById('issues-tbody');
+  if (!issues.length) {
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="icon">🔍</div><p>No issues found</p></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = issues.map(i => `
+    <tr onclick="openDetail('${i.id}')">
+      <td><span class="badge-id">${i.id}</span></td>
+      <td>${escHtml(i.summary)}</td>
+      <td>${escHtml(projectName(i.project))}</td>
+      <td>
+        ${i.assignee
+          ? `<div class="flex-gap"><div class="avatar">${personInitials(i.assignee)}</div>${escHtml(personName(i.assignee))}</div>`
+          : '<span class="text-muted">Unassigned</span>'}
+      </td>
+      <td>${pillStatus(i.status)}</td>
+      <td>${pillPriority(i.priority)}</td>
+      <td class="${i.status !== 'resolved' && isOverdueDate(i.targetDate) ? 'detail-value overdue-date' : ''}">${fmtDate(i.targetDate)}</td>
+    </tr>
+  `).join('');
+}
+
+/* ────────────────────────────────────────────────────────────────
+   ISSUE DETAIL VIEW MODAL (D2)
+   ──────────────────────────────────────────────────────────────── */
+let currentDetailId = null;
+
+function openDetail(id) {
+  const issue = getIssues().find(i => i.id === id);
+  if (!issue) return;
+  currentDetailId = id;
+
+  document.getElementById('dm-summary').textContent = issue.summary;
+  document.getElementById('dm-badges').innerHTML = `
+    <span class="badge-id">${issue.id}</span>
+    ${pillStatus(issue.status)}
+    ${pillPriority(issue.priority)}
+  `;
+
+  const overdueTarget = issue.status !== 'resolved' && isOverdueDate(issue.targetDate);
+  const fields = [
+    { label:'Issue ID',               value:`<span class="badge-id">${issue.id}</span>` },
+    { label:'Project',                value: escHtml(projectName(issue.project)) },
+    { label:'Status',                 value: pillStatus(issue.status) },
+    { label:'Priority',               value: pillPriority(issue.priority) },
+    { label:'Assigned To',            value: issue.assignee
+        ? `<div class="flex-gap"><div class="avatar">${personInitials(issue.assignee)}</div>${escHtml(personName(issue.assignee))}</div>`
+        : '<span class="text-muted">Unassigned</span>' },
+    { label:'Reporter',               value: escHtml(personName(issue.reporter)) },
+    { label:'Date Identified',        value: fmtDate(issue.dateIdentified) },
+    { label:'Target Resolution Date', value: `<span class="${overdueTarget ? 'overdue-date' : ''}">${fmtDate(issue.targetDate)}${overdueTarget ? ' ⚠️' : ''}</span>` },
+    { label:'Actual Resolution Date', value: fmtDate(issue.actualDate) || '—' },
+    { label:'Resolution Summary',     value: issue.status === 'resolved' && issue.resolution ? escHtml(issue.resolution) : '<span class="text-muted">—</span>', full: issue.status === 'resolved' },
+    { label:'Detailed Description',   value: `<div class="detail-value desc">${escHtml(issue.description) || 'No description provided.'}</div>`, full: true },
+  ];
+
+  document.getElementById('dm-fields').innerHTML = fields.map(f => `
+    <div class="detail-field ${f.full ? 'full' : ''}">
+      <div class="detail-label">${f.label}</div>
+      <div class="detail-value">${f.value}</div>
+    </div>
+  `).join('');
+
+  document.getElementById('detail-modal').classList.add('open');
+}
+
+function closeDetailModal(e) {
+  if (e.target === document.getElementById('detail-modal')) closeDetailModalDirect();
+}
+function closeDetailModalDirect() {
+  document.getElementById('detail-modal').classList.remove('open');
+  currentDetailId = null;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   EDIT ISSUE MODAL (D3)
+   ──────────────────────────────────────────────────────────────── */
+function openEditFromDetail() {
+  if (!currentDetailId) return;
+  closeDetailModalDirect();
+  openEdit(currentDetailId);
+}
+
+function openEdit(id) {
+  const issue = getIssues().find(i => i.id === id);
+  if (!issue) return;
+  currentDetailId = id;
+
+  document.getElementById('em-id-badge').innerHTML = `<span class="badge-id">${issue.id}</span>`;
+  document.getElementById('e-summary').value      = issue.summary;
+  document.getElementById('e-desc').value         = issue.description || '';
+  document.getElementById('e-status').value       = issue.status;
+  document.getElementById('e-priority').value     = issue.priority;
+  document.getElementById('e-target-date').value  = issue.targetDate || '';
+  document.getElementById('e-actual-date').value  = issue.actualDate || '';
+  document.getElementById('e-resolution').value   = issue.resolution || '';
+
+  // Populate assignee dropdown
+  const sel = document.getElementById('e-assignee');
+  sel.innerHTML = '<option value="">Unassigned</option>' +
+    getPeople().map(p => `<option value="${p.id}" ${p.id === issue.assignee ? 'selected' : ''}>${escHtml(p.name)}</option>`).join('');
+
+  document.getElementById('edit-modal').classList.add('open');
+}
+
+function closeEditModal(e) {
+  if (e.target === document.getElementById('edit-modal')) closeEditModalDirect();
+}
+function closeEditModalDirect() {
+  document.getElementById('edit-modal').classList.remove('open');
+  currentDetailId = null;
+}
+
+function saveEdit() {
+  const summary = document.getElementById('e-summary').value.trim();
+  if (!summary) { toast('Summary cannot be empty.', 'error'); return; }
+
+  const issues = getIssues();
+  const idx = issues.findIndex(i => i.id === currentDetailId);
+  if (idx === -1) { toast('Issue not found.', 'error'); return; }
+
+  issues[idx] = {
+    ...issues[idx],
+    summary,
+    description: document.getElementById('e-desc').value.trim(),
+    assignee:    document.getElementById('e-assignee').value,
+    status:      document.getElementById('e-status').value,
+    priority:    document.getElementById('e-priority').value,
+    targetDate:  document.getElementById('e-target-date').value,
+    actualDate:  document.getElementById('e-actual-date').value,
+    resolution:  document.getElementById('e-resolution').value.trim(),
+  };
+
+  // Validate: can only be resolved if actual date set
+  if (issues[idx].status === 'resolved' && !issues[idx].actualDate) {
+    toast('Please set an Actual Resolution Date before marking as resolved.', 'error');
+    return;
+  }
+
+  saveIssues(issues);
+  closeEditModalDirect();
+  toast(`Issue ${issues[idx].id} updated successfully!`, 'success');
+
+  // Re-render whichever view is visible
+  const activePage = document.querySelector('.page.active')?.id;
+  if (activePage === 'page-dashboard') { renderStats(); renderKanban(); }
+  if (activePage === 'page-issues')    { renderIssuesTable(); }
+}
+
+/* ────────────────────────────────────────────────────────────────
+   CREATE ISSUE
+   ──────────────────────────────────────────────────────────────── */
+function populateCreateForm() {
+  const people   = getPeople();
+  const projects = getProjects();
+  const today    = new Date().toISOString().split('T')[0];
+
+  ['c-reporter','c-assignee'].forEach(id => {
+    const sel = document.getElementById(id);
+    const blank = id === 'c-assignee' ? '<option value="">Unassigned</option>' : '<option value="">Select reporter…</option>';
+    sel.innerHTML = blank + people.map(p => `<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
+  });
+
+  const projSel = document.getElementById('c-project');
+  projSel.innerHTML = '<option value="">Select project…</option>' +
+    projects.map(p => `<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
+
+  document.getElementById('c-date-identified').value = today;
+  document.getElementById('c-summary').value = '';
+  document.getElementById('c-desc').value = '';
+  document.getElementById('c-target-date').value = '';
+}
+
+function createIssue() {
+  const summary  = document.getElementById('c-summary').value.trim();
+  const reporter = document.getElementById('c-reporter').value;
+  const project  = document.getElementById('c-project').value;
+  if (!summary)  { toast('Summary is required.', 'error'); return; }
+  if (!reporter) { toast('Reporter is required.', 'error'); return; }
+  if (!project)  { toast('Project is required.', 'error'); return; }
+
+  const issue = {
+    id:             nextId(),
+    summary,
+    description:    document.getElementById('c-desc').value.trim(),
+    project,
+    reporter,
+    assignee:       document.getElementById('c-assignee').value,
+    status:         document.getElementById('c-status').value,
+    priority:       document.getElementById('c-priority').value,
+    dateIdentified: document.getElementById('c-date-identified').value,
+    targetDate:     document.getElementById('c-target-date').value,
+    actualDate:     '',
+    resolution:     '',
+  };
+  const issues = getIssues();
+  issues.push(issue);
+  saveIssues(issues);
+  toast(`Issue ${issue.id} created!`, 'success');
+  navigate('dashboard');
+}
+
+/* ────────────────────────────────────────────────────────────────
+   PEOPLE PAGE
+   ──────────────────────────────────────────────────────────────── */
+function renderPeople() {
+  const people = getPeople();
+  const colours = ['#6c63ff','#ff6584','#43aa8b','#f77f00','#277da1'];
+  document.getElementById('people-grid').innerHTML = people.length
+    ? people.map((p, i) => `
+        <div class="person-card">
+          <div class="person-avatar" style="background:${colours[i % colours.length]}">${p.initials}</div>
+          <div class="person-name">${escHtml(p.name)}</div>
+          <div class="person-role">${escHtml(p.role)}</div>
+        </div>`).join('')
+    : '<div class="empty-state"><div class="icon">👤</div><p>No people yet</p></div>';
+}
+
+function addPersonPrompt() {
+  const name     = prompt('Full name:');     if (!name) return;
+  const role     = prompt('Role/Title:');    if (!role) return;
+  const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2);
+  const people   = getPeople();
+  const id       = 'U' + (people.length + 1);
+  people.push({ id, name: name.trim(), role: role.trim(), initials });
+  savePeople(people);
+  renderPeople();
+  toast(`${name} added!`, 'success');
+}
+
+/* ────────────────────────────────────────────────────────────────
+   PROJECTS PAGE
+   ──────────────────────────────────────────────────────────────── */
+function renderProjects() {
+  const projects = getProjects();
+  const issues   = getIssues();
+  document.getElementById('projects-list').innerHTML = projects.length
+    ? projects.map(p => {
+        const pi = issues.filter(i => i.project === p.id);
+        return `
+          <div class="card" style="margin-bottom:14px">
+            <div class="section-header">
+              <div>
+                <h3>${escHtml(p.name)}</h3>
+                <p style="font-size:13px;color:var(--muted);margin-top:4px">${escHtml(p.description)}</p>
+              </div>
+              <div class="flex-gap">
+                <span class="pill pill-open">${pi.filter(i=>i.status==='open').length} open</span>
+                <span class="pill pill-overdue">${pi.filter(i=>i.status==='overdue').length} overdue</span>
+                <span class="pill pill-resolved">${pi.filter(i=>i.status==='resolved').length} resolved</span>
+              </div>
+            </div>
+          </div>`;
+      }).join('')
+    : '<div class="empty-state"><div class="icon">📁</div><p>No projects yet</p></div>';
+}
+
+function addProjectPrompt() {
+  const name = prompt('Project name:');        if (!name) return;
+  const desc = prompt('Short description:');
+  const projs = getProjects();
+  projs.push({ id:'P'+(projs.length+1), name:name.trim(), description:(desc||'').trim() });
+  saveProjects(projs);
+  renderProjects();
+  toast(`Project "${name}" added!`, 'success');
+}
+
+/* ────────────────────────────────────────────────────────────────
+   TOAST NOTIFICATION
+   ──────────────────────────────────────────────────────────────── */
+let toastTimer;
+function toast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent  = msg;
+  document.getElementById('toast-icon').textContent = type === 'success' ? '✅' : '❌';
+  el.className = `show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = ''; }, 3500);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   UTILS
+   ──────────────────────────────────────────────────────────────── */
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ────────────────────────────────────────────────────────────────
+   INIT
+   ──────────────────────────────────────────────────────────────── */
+seedIfEmpty();
+applyOverdueLogic();   // D4: auto-overdue on load
+navigate('dashboard');
+
+</script>
+</body>
+</html>
