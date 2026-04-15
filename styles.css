@@ -1,0 +1,200 @@
+.root {
+  --bg: #ffffff;
+  --surface: #f0f0f0;
+  --border: #dddddd;
+  --text: #333333;
+  --accent: #ff5722;
+  --open: #4caf50;
+  --resolved: #2196f3;
+  --overdue: #f44336;
+  --high: #ff9800;
+  --medium: #ffeb3b;
+  --low: #8bc34a;
+}
+
+.app {
+  display: flex;
+}
+
+.sidebar {
+  width: 250px;
+}
+
+.main {
+  flex: 1;
+}
+
+.topbar {
+  height: 60px;
+}
+
+.page {
+  padding: 20px;
+}
+
+.btn {
+  padding: 10px 15px;
+  border-radius: 5px;
+  border: none;
+}
+
+.btn-primary {
+  background-color: var(--accent);
+  color: white;
+}
+
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.btn-danger {
+  background-color: #dc3545;
+  color: white;
+}
+
+.btn-success {
+  background-color: #28a745;
+  color: white;
+}
+
+.pill {
+  padding: 5px 10px;
+  border-radius: 20px;
+}
+
+.badge-id {
+  background-color: var(--high);
+  color: white;
+  padding: 3px 7px;
+  border-radius: 12px;
+}
+
+.card {
+  border: 1px solid var(--border);
+  margin: 10px;
+  padding: 15px;
+}
+
+.stat-card {
+  background-color: var(--surface);
+}
+
+.section-header {
+  font-weight: bold;
+}
+
+.kanban {
+  display: flex;
+}
+
+.kanban-col {
+  flex: 1;
+  margin: 10px;
+}
+
+.kanban-card {
+  background-color: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.kanban-card-title {
+  font-weight: bold;
+}
+
+.kanban-card-meta {
+  color: var(--text);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 10px;
+  border: 1px solid var(--border);
+}
+
+tr:hover {
+  background-color: var(--surface);
+}
+
+input, textarea, select {
+  border: 1px solid var(--border);
+  padding: 8px;
+  width: 100%;
+}
+
+.form-grid {
+  display: grid;
+  gap: 15px;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.modal-overlay {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.modal {
+  background: white;
+  border-radius: 5px;
+}
+
+.modal-header {
+  font-weight: bold;
+}
+
+.modal-body {
+  padding: 15px;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.detail-field {
+  margin: 10px 0;
+}
+
+.people-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
+.person-card {
+  border: 1px solid var(--border);
+  padding: 10px;
+}
+
+.person-avatar {
+  border-radius: 50%;
+}
+
+#toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+}
+
+/* Utility classes */
+.mt-2 {
+  margin-top: 10px;
+}
+.mb-2 {
+  margin-bottom: 10px;
+}
