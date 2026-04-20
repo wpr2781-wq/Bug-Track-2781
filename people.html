@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BugTracker: People</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-name">Bug<em>·</em>Tracker</div>
+      <div class="brand-sub">Issue Tracking System</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-group">Issues</div>
+      <a href="index.html"        class="nav-link">◈  Dashboard</a>
+      <a href="create-issue.html" class="nav-link">＋  New Issue</a>
+      <div class="nav-group">Manage</div>
+      <a href="people.html"      class="nav-link active">◎  People</a>
+      <a href="projects.html"   class="nav-link">◫  Projects</a>
+      <a href="view-issue.html" class="nav-link">◉  View Issue</a>
+    </nav>
+    <div class="sidebar-foot">&copy; Group T</div>
+  </aside>
+
+  <!-- main content area -->
+  <main class="main">
+
+    <div class="page-header">
+      <div class="eyebrow">Manage</div>
+      <h1>People</h1>
+    </div>
+
+    <!-- add person form -->
+    <div class="card">
+      <div class="card-title">Add a person</div>
+
+      <form id="person-form">
+        <div class="form-grid">
+
+          <div class="field">
+            <label for="f-name">First name</label>
+            <input type="text" id="f-name" placeholder="e.g. Michael" required />
+          </div>
+
+          <div class="field">
+            <label for="f-surname">Surname</label>
+            <input type="text" id="f-surname" placeholder="e.g. Jackson" required />
+          </div>
+
+          <div class="field">
+            <label for="f-email">Email address</label>
+            <input type="email" id="f-email" placeholder="e.g. michael.j@example.com" required />
+          </div>
+
+          <div class="field">
+            <label for="f-username">
+              Username
+              <span style="color:var(--ink3);text-transform:none;letter-spacing:0;font-size:0.6rem;">&nbsp;(must be unique)</span>
+            </label>
+            <input type="text" id="f-username" placeholder="e.g. mic_j" required />
+          </div>
+
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">＋ Add person</button>
+          <button type="reset"  class="btn btn-ghost">Clear</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- people list -->
+    <div class="card">
+      <div class="card-title">
+        All people &nbsp;
+        <span id="people-count" class="badge badge-neutral" style="font-family:'DM Sans',sans-serif;"></span>
+      </div>
+      <div id="people-list"></div>
+    </div>
+
+  </main>
+</div>
+
+<div id="toast-container"></div>
+
+<script src="storage.js"></script>
+<script>
+
+
+
+// JS SECTION - it is very very similar as the project.html javascript so if anything does need to be explained lmk
+  //toast
+  function toast(msg, type) {
+    var el = document.createElement('div');
+    el.className = 'toast ' + (type || 'success');
+    el.textContent = msg;
+    document.getElementById('toast-container').appendChild(el);
+    setTimeout(function() { el.remove(); }, 3200);
+  }
+
+  //render tabl
+  function render() {
+    var people    = getAllPeople();
+    var container = document.getElementById('people-list');
+    document.getElementById('people-count').textContent = people.length;
+
+    if (people.length === 0) {
+      container.innerHTML = '<div class="empty">No one added yet. Please fill in the form above.</div>';
+      return;
+    }
+
+    var rows = '';
+    for (var i = 0; i < people.length; i++) {
+      var p = people[i];
+      var initials = p.name.charAt(0).toUpperCase() + p.surname.charAt(0).toUpperCase();
+      rows +=
+        '<tr>' +
+          '<td class="cell-name">' +
+            '<span style="display:inline-flex;align-items:center;gap:10px;">' +
+              '<span class="avatar">' + initials + '</span>' +
+              p.name + ' ' + p.surname +
+            '</span>' +
+          '</td>' +
+          '<td style="color:var(--ink3);font-size:0.8rem;">@' + p.username + '</td>' +
+          '<td>' + p.email + '</td>' +
+          '<td class="cell-mono">' + p.id + '</td>' +
+          '<td><button class="btn btn-danger" onclick="removePersonById(\'' + p.id + '\')">✕ Remove</button></td>' +
+        '</tr>';
+    }
+
+    container.innerHTML =
+      '<table class="data-table">' +
+        '<thead><tr>' +
+          '<th>Name</th><th>Username</th><th>Email</th><th>ID</th><th></th>' +
+        '</tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table>';
+  }
+
+  //submit form
+  document.getElementById('person-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var name     = document.getElementById('f-name').value;
+    var surname  = document.getElementById('f-surname').value;
+    var email    = document.getElementById('f-email').value;
+    var username = document.getElementById('f-username').value;
+
+    try {
+      createPerson(name, surname, email, username);
+      this.reset();
+      render();
+      toast(name + ' ' + surname + ' was added.', 'success');
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  });
+
+  //delete 
+  function removePersonById(id) {
+    if (!confirm('Remove this person? This cannot be undone.')) return;
+    deletePerson(id);
+    render();
+    toast('Person removed.', 'success');
+  }
+
+  render();
+
+</script>
+</body>
+</html>

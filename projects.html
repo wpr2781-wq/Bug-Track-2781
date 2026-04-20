@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BugTracker: Projects</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="shell">
+
+<!-- sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-name">Bug<em>·</em>Tracker</div>
+      <div class="brand-sub">Issue Tracking System</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-group">Issues</div>
+      <a href="index.html"        class="nav-link">◈  Dashboard</a>
+      <a href="create-issue.html" class="nav-link">＋  New Issue</a>
+      <div class="nav-group">Manage</div>
+      <a href="people.html"      class="nav-link">◎  People</a>
+      <a href="projects.html"   class="nav-link active">◫  Projects</a>
+      <a href="view-issue.html" class="nav-link">◉  View Issue</a>
+    </nav>
+    <div class="sidebar-foot">&copy; Group T</div>
+  </aside>
+
+  <!-- main content area-->
+  <main class="main">
+
+    <div class="page-header">
+      <div class="eyebrow">Manage</div>
+      <h1>Projects</h1>
+    </div>
+
+    <!-- Add project form -->
+    <div class="card">
+      <div class="card-title">Add a project</div>
+
+      <form id="project-form">
+        <div class="field" style="max-width:400px;">
+          <label for="f-name">Project name</label>
+          <input type="text" id="f-name" placeholder="e.g. Portal Redesign" required />
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">＋ Add project</button>
+          <button type="reset"  class="btn btn-ghost">Clear</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- pojects list -->
+    <div class="card">
+      <div class="card-title">
+        All projects &nbsp;
+        <span id="projects-count" class="badge badge-neutral" style="font-family:'DM Sans',sans-serif;"></span>
+      </div>
+      <div id="projects-list"></div>
+    </div>
+
+  </main>
+</div>
+
+<div id="toast-container"></div>//if you dont know what a toast is its like a pop up notification
+
+<script src="storage.js"></script>
+<script>
+
+
+//JS SECTION
+
+//rhis will show a small pop up msg on the screen eg)project added
+//it creates a new message box you pass in and itll style it based on the type (like success or error) or then it automically dissapears after 3 secs
+  function toast(msg, type) {
+    var el = document.createElement('div');
+    el.className = 'toast ' + (type || 'success');
+    el.textContent = msg;
+    document.getElementById('toast-container').appendChild(el);
+    setTimeout(function() { el.remove(); }, 3200);
+  }
+
+  //main func, it updates what you see on the pg. Everytime somethings gonna change (like when you add or delete a proj) then this func
+  //will redraw the list so it stays up to date
+  function render() {
+    var projects  = getAllProjects(); //fetch all saved projs and bugs from storage.js
+    var bugs      = getAllBugs(); //think of it like pulling data from a mini database saved in the browser
+    var container = document.getElementById('projects-list'); //finds where the proj list should be displaued on the pg and it also updates a counter showing how many projs exist
+    document.getElementById('projects-count').textContent = projects.length;
+
+    //handling empty projs
+    //if theres no projs then itll show a message instead of a table then it stops running the rest of the function
+    if (projects.length === 0) {
+      container.innerHTML = '<div class="empty">No projects yet. Add the first one above.</div>';
+      return;
+    }
+
+    //looping through projs 
+    //each proj one by one to display them
+    var rows = '';
+    for (var i = 0; i < projects.length; i++) {
+      var p = projects[i];
+
+    //counts open bugs
+    //so for each project this will check all bugs and count how many are still nott fixed or not resolved. The num will show next to the proj
+      var open = 0;
+      for (var j = 0; j < bugs.length; j++) {
+        if (bugs[j].projectId === p.id && bugs[j].status !== 'resolved') open++;
+      }
+
+  //creating status badge
+  //this decides what lapel to show: so if there are open bugs then show many and if none then sow all clear
+
+      var badge = open > 0
+        ? '<span class="badge badge-warm">' + open + ' open</span>'
+        : '<span class="badge badge-green">All clear</span>';
+
+  
+    //builds table rows
+    //one row for each proj (proj name, num of open issues, project id, del button)
+      rows +=
+        '<tr>' +
+          '<td class="cell-name">' + p.name + '</td>' +
+          '<td>' + badge + '</td>' +
+          '<td class="cell-mono">' + p.id + '</td>' +
+          '<td><button class="btn btn-danger" onclick="removeProjectById(\'' + p.id + '\')">✕ Remove</button></td>' +
+        '</tr>';
+    }
+
+//displaying the table
+//after displaying all rows this will just display them as a full table
+    container.innerHTML =
+      '<table class="data-table">' +
+        '<thead><tr>' +
+          '<th>Project name</th><th>Open issues</th><th>ID</th><th></th>' +
+        '</tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table>';
+  }
+
+
+  //form submission
+  //will listen for when the user submits the form and it stopsthe page from refreshing which normally happens with forms
+  document.getElementById('project-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var name = document.getElementById('f-name').value; //gets proj name from input box and storesin storage func
+    createProject(name);
+    this.reset(); //clears form and updates dislay and shows success message
+    render();
+    toast('"' + name + '" added.', 'success');
+  });
+
+
+//runs when del button is clicked, it first asks user to complete befor deleting
+  function removeProjectById(id) {
+    if (!confirm('Remove this project? This cannot be undone.')) return;
+    deleteProject(id);
+    render();
+    toast('Project removed.', 'success');
+  }
+
+  render(); //render func so as soon as pg loads it shows projs
+
+</script>
+</body>
+</html>

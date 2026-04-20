@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BugTracker System: Dashboard</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <div class="brand-name">Bug<em>·</em>Tracker</div>
+          <div class="brand-sub">Issue Tracking System</div>
+        </div>
+        <nav class="sidebar-nav">
+          <div class="nav-group">Issues</div>
+          <a href="index.html" class="nav-link active">◈ Dashboard</a>
+          <a href="create-issue.html" class="nav-link">＋ New Issue</a>
+          <div class="nav-group">Manage</div>
+          <a href="people.html" class="nav-link">◎ People</a>
+          <a href="projects.html" class="nav-link">◫ Projects</a>
+          <a href="view-issue.html" class="nav-link">◉ View Issue</a>
+        </nav>
+        <div class="sidebar-foot">&copy; Group T</div>
+      </aside>
+      <main class="main">
+        <div class="page-header">
+          <div class="eyebrow">Overview</div>
+          <h1>Dashboard</h1>
+        </div>
+        <div class="dashboard-wrapper">
+          <div class="wrapper-container">
+            <main class="board">
+              <section class="column">
+                <header class="column-header">Backlog</header>
+                <section id="col-backlog" class="column-body"></section>
+              </section>
+
+              <section class="column">
+                <header class="column-header">Ready</header>
+                <section id="col-ready" class="column-body"></section>
+              </section>
+
+              <section class="column">
+                <header class="column-header">In Progress</header>
+                <section id="col-in-progress" class="column-body"></section>
+              </section>
+
+              <section class="column">
+                <header class="column-header">Done</header>
+                <section id="col-done" class="column-body"></section>
+              </section>
+            </main>
+            <script src="storage.js"></script>
+
+            <script>
+              function renderDashboard() {
+                //Grab the list of bugs from the storage.js file
+                let allBugs = getAllBugs();
+
+                //Identify where each status column is in the HTML
+                let columns = {
+                  backlog: document.querySelector("#col-backlog"),
+                  ready: document.querySelector("#col-ready"),
+                  "in-progress": document.querySelector("#col-in-progress"),
+                  done: document.querySelector("#col-done"),
+                };
+
+                //Clear the columns so we don't double up data on refresh
+                columns.backlog.innerHTML = "";
+                columns.ready.innerHTML = "";
+                columns["in-progress"].innerHTML = "";
+                columns.done.innerHTML = "";
+
+                //Look at each bug
+                allBugs.forEach((bug) => {
+                  // Find the names for the IDs
+                  let person = findPerson(bug.assignedTo);
+
+                  //Pick a color for the priority badge
+                  let priorityStyle = "badge-neutral";
+                  if (bug.priority === "high") priorityStyle = "badge-red";
+                  if (bug.priority === "medium") priorityStyle = "badge-warm";
+
+                  //Build the card for the bug
+                  let bugCard = `
+                    <article class="card">
+                      <a href="view-issue.html?id=${bug.id}" style="text-decoration:none; color:inherit;">
+                        <h3>${bug.summary}</h3>
+                        <footer>
+                          <span class="badge ${priorityStyle}">${bug.priority}</span>
+                          <small>@${person ? person.username : "none"}</small>
+                        </footer>
+                      </a>
+                    </article>
+                  `;
+
+                  //Put the card in the right column based on its status
+                  let statusKey = bug.status.toLowerCase();
+                  if (columns[statusKey]) {
+                    columns[statusKey].innerHTML += bugCard;
+                  }
+                });
+
+                Object.keys(columns).forEach((key) => {
+                  if (columns[key].innerHTML === "") {
+                    columns[key].innerHTML =
+                      '<div class="empty">No issues here</div>';
+                  }
+                });
+              }
+
+              //Run this function when the page finished loading
+              window.onload = renderDashboard;
+            </script>
+          </div>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

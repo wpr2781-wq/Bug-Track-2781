@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BugTracker Systems: New Issue</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <div class="brand-name">Bug<em>·</em>Tracker</div>
+          <div class="brand-sub">Issue Tracking System</div>
+        </div>
+        <nav class="sidebar-nav">
+          <div class="nav-group">Issues</div>
+          <a href="index.html" class="nav-link">◈ Dashboard</a>
+          <a href="create-issue.html" class="nav-link active">＋ New Issue</a>
+          <div class="nav-group">Manage</div>
+          <a href="people.html" class="nav-link">◎ People</a>
+          <a href="projects.html" class="nav-link">◫ Projects</a>
+          <a href="view-issue.html" class="nav-link">◉ View Issue</a>
+        </nav>
+        <div class="sidebar-foot">&copy; Group T</div>
+      </aside>
+      <main class="main">
+        <div class="page-header">
+          <div class="eyebrow">Issues</div>
+          <h1>New Issue</h1>
+        </div>
+
+        <!-- It starts here my work starts here-->
+        <div class="card">
+          <div class="card-title">Issue Details</div>
+
+          <form id="issueForm">
+
+          <div class="form-grid">
+
+          <!-- This where they will explain their problem -->
+          <div class=" field field-full">
+            <label>Summary</label>
+            <input
+              type="text"
+              id="summary"
+              placeholder="--Short description--"
+            />
+          </div>
+          <!-- This where they will explain their problem-->
+
+          <!-- Dropdowns start here-->
+          <!-- Here is select a developer to do the job-->
+          <div class=" field">
+            <label> Identifiy By</label>
+            <select id="identifiedBy">
+              <option value="">--select person--</option>
+            </select>
+          </div>
+          <!-- Here is select a developer to do the job-->
+
+          <!--Here is a dropdown meanu
+          for the date-->
+          <div class=" field">
+            <label> --Date Identified--</label>
+            <input type="date" id="date_identified"/>
+          </div>
+          <!--Here is a dropdown meanu for the date-->
+
+          <!--Here is a dropdown meanu
+          for the Description-->
+          <div class=" field field-full">
+            <label for="">Description</label>
+            <textarea id="description" placeholder="description--"></textarea>
+          </div>
+
+          <!--Here is a dropdown meanu for the Description-->
+
+          <!--Here it is the
+          dropdown menu for the project type-->
+          <div class=" field">
+            <label for="">Project</label>
+            <select name="" id="projects">
+              <option value="">--select project/s--</option>
+            </select>
+          </div>
+
+          <!--Here it is the dropdown menu for the project type-->
+          <!--Here it is the
+          dropdown menu for the assigned to. Like who will be get what
+          project-->
+
+          <div class=" field">
+            <label for="">Assign to</label>
+            <select name="" id="assigned_to">
+              <option value="">--select person--</option>
+            </select>
+          </div>
+          <!--Here it is the dropdown menu for the assigned to.-->
+
+          <!-- Here it where
+          they select the progress of teh problem-->
+
+          <div class=" field">
+            <label for="">Status</label>
+            <select name="" id="Status">
+              <option value="">--Select Status--</option>
+              <option value="open">Open</option>
+              <option value="in-progress">In Progress</option>
+              <option value="resolved">Resolved</option>
+              <option value="closed">Closed</option>
+            </select>
+          </div>
+          <!-- Here it where they select the progress of teh problem--->
+          <!--Here it is
+          where they will select how serious the problem is-->
+          <div class=" field">
+            <label for="">Priority</label>
+            <select name="" id="Priority">
+              <option value="">--Select Priority--</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+            </select>
+            <!--Here it is where they will select how serious the problem is-->
+          </div>
+
+          <!--Here is where they will select when tthey want their problem solved-->
+          <div class=" field">
+            <label> --Target Date--</label>
+            <input type="date" id="Target_Date" />
+          </div>
+        </div>
+          </form>
+        <!--Here is where they will select when tthey want their problem solved-->
+
+        <button id="btn-submit" type="button">Create Issue</button>
+      </main>
+    </div>
+
+
+          </div>
+
+    <script src="storage.js"></script>
+    <script>
+      //I will be creating funtions that will store user input to be used across the application
+
+      function populate_Users_data() {
+        let people = getAllPeople(); //rom the storage.js
+        let projects = getAllProjects();
+
+        // For yhe drop down menus they just select an the data gets stored here
+        let select_Person = document.getElementById("identifiedBy");
+        let assigned_to = document.getElementById("assigned_to");
+        let select_project = document.getElementById("projects");
+
+        people.forEach(function (p) {
+          select_Person.add(new Option(p.name + " " + p.surname, p.id));
+          assigned_to.add(new Option(p.name + " " + p.surname, p.id));
+        });
+
+        projects.forEach(function (proj) {
+          select_project.add(new Option(proj.name, proj.id)); // Fixed variable name
+        });
+      }
+
+      //This for person 3 and 4 here are sample bugs
+      function sample_Bugs() {
+        if (getAllBugs().length > 0) return;
+        let people = getAllPeople();
+        let projects = getAllProjects();
+
+        createBug({
+          summary: "Login page crashes on Safari",
+          description: "White screen after login on Safari 16.",
+          identifiedBy: people[0].id,
+          dateIdentified: "2026-04-10",
+          projectId: projects[0].id,
+          assignedTo: people[1].id,
+          status: "open",
+          priority: "high",
+          targetResolutionDate: "2026-04-20",
+        });
+
+        createBug({
+          summary: "Dashboard graph not loading",
+          description: "Revenue graph is blank on the main dashboard.",
+          identifiedBy: people[1].id,
+          dateIdentified: "2026-04-11",
+          projectId: projects[1].id,
+          assignedTo: people[2].id,
+          status: "in-progress",
+          priority: "medium",
+          targetResolutionDate: "2026-04-22",
+        });
+      }
+
+//Here it is for the buttons
+//it took so long to write and understand
+document
+  .getElementById("btn-submit")
+  .addEventListener("click", function () {
+    let data = {
+      summary: document.getElementById("summary").value,
+      description: document.getElementById("description").value,
+      identifiedBy: document.getElementById("identifiedBy").value,
+      dateIdentified: document.getElementById("date_identified").value,
+      projectId: document.getElementById("projects").value,
+      assignedTo: document.getElementById("assigned_to").value,
+      status: document.getElementById("Status").value,
+      priority: document.getElementById("Priority").value,
+      targetResolutionDate: document.getElementById("Target_Date").value,
+    };
+
+    createBug(data);
+    alert(`Issue saved`);
+
+    // This one line clears EVERY field inside the form tag
+    document.getElementById("issueForm").reset();
+  });
+
+        
+
+      populate_Users_data();
+      sample_Bugs();
+    </script>
+  </body>
+</html>
+ 
