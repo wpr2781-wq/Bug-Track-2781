@@ -293,23 +293,6 @@ This ensures the app is never blank during the presentation.
 
 ---
 
-## GitHub setup
-
-1. **Initialize the repository** — Run `git init` in your project folder to set up Git.
-
-2. **Stage all files** — Run `git add .` to stage all files for commit.
-
-3. **Create your first commit** — Run `git commit -m "feat: initial commit — Bug Tracker group project"` to commit your files.
-
-4. **Create a new repo on GitHub and link it** — Go to [github.com/new](https://github.com/new) to create a new repository, then run:
-   ```bash
-   git remote add origin [https://wpr2781-wq.github.io/Bug-Track-2781/]
-
-5. **Push to GitHub** — Run `git push -u origin main` to push your commits to GitHub.
-
-
----
-
 ## Group contributions
 
 | Member | Pages / components |
