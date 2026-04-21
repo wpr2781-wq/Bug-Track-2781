@@ -320,10 +320,10 @@ git push -u origin main
 
 | Member | Pages / components |
 |--------|-------------------|
-| Person 1 | `people.html`, `projects.html`, `storage.js`, `style.css` |
-| Person 2 | `create-issue.html`, bug seed data |
-| Person 3 | `index.html` — Kanban dashboard |
-| Person 4 | `view-issue.html` — detail view + edit form |
+| SAIESHA NAIDOO (604096) | `people.html`, `projects.html`, `storage.js`, `style.css` |
+| LETHABO NGALAVA MAKHUBELE (604123) | `create-issue.html`, bug seed data |
+| PHEMELO SEGAI (604782) | `index.html` — Kanban dashboard |
+| MONGEZI MAHLANGU (605039) | `view-issue.html` — detail view + edit form |
 
 ---
 
