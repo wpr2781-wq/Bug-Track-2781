@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BugTracker: View Issue</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* ── Page additions — all colours from existing style.css variables ── */
+
+    /* Breadcrumb */
+    .breadcrumb{display:flex;align-items:center;gap:6px;font-size:0.78rem;color:var(--ink3);margin-bottom:6px}
+    .breadcrumb a{color:var(--ink3);text-decoration:none}
+    .breadcrumb a:hover{color:var(--accent)}
+    .breadcrumb span{opacity:.5}
+
+    /* Issue header inside card */
+    .issue-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:24px}
+    .issue-id-badge{font-size:0.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);border:1px solid color-mix(in srgb,var(--accent) 25%,transparent);padding:3px 10px;border-radius:20px;display:inline-flex;align-items:center}
+    .issue-title-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:6px}
+    #view-summary{font-size:1.22rem;font-weight:700;letter-spacing:-.01em;line-height:1.3}
+
+    /* Status / priority / project chips */
+    .chip{display:inline-flex;align-items:center;gap:5px;font-size:0.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:4px 11px;border-radius:20px}
+    .chip::before{content:'';width:7px;height:7px;border-radius:50%;flex-shrink:0}
+    .chip-open    {background:color-mix(in srgb,#3db37a 12%,transparent);color:#2a9060;border:1px solid color-mix(in srgb,#3db37a 30%,transparent)}
+    .chip-open::before    {background:#3db37a}
+    .chip-resolved{background:color-mix(in srgb,#5b9bd5 12%,transparent);color:#3a7ab8;border:1px solid color-mix(in srgb,#5b9bd5 30%,transparent)}
+    .chip-resolved::before{background:#5b9bd5}
+    .chip-overdue {background:color-mix(in srgb,#e06050 12%,transparent);color:#c03a28;border:1px solid color-mix(in srgb,#e06050 30%,transparent)}
+    .chip-overdue::before {background:#e06050}
+    .chip-low     {background:color-mix(in srgb,#6bba8a 12%,transparent);color:#3d8a5a;border:1px solid color-mix(in srgb,#6bba8a 30%,transparent)}
+    .chip-low::before     {background:#6bba8a}
+    .chip-medium  {background:color-mix(in srgb,#e0a040 12%,transparent);color:#b07820;border:1px solid color-mix(in srgb,#e0a040 30%,transparent)}
+    .chip-medium::before  {background:#e0a040}
+    .chip-high    {background:color-mix(in srgb,#e06050 12%,transparent);color:#c03a28;border:1px solid color-mix(in srgb,#e06050 30%,transparent)}
+    .chip-high::before    {background:#e06050}
+    .chip-project {background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 25%,transparent)}
+    .chip-project::before {background:var(--accent)}
+
+    /* Detail grid */
+    .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:0}
+    .detail-cell{padding:14px 18px;border-bottom:1px solid var(--border,rgba(0,0,0,.07))}
+    .detail-cell.full{grid-column:1/-1}
+    .detail-cell:nth-child(odd):not(.full){border-right:1px solid var(--border,rgba(0,0,0,.07))}
+    .detail-label{font-size:0.70rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ink3);margin-bottom:4px}
+    .detail-value{font-size:0.88rem;color:var(--ink1,#1a1a2e);line-height:1.6;white-space:pre-wrap}
+
+    /* Resolution cells hidden until resolved */
+    #resolution-section{display:none}
+    #resolution-section.visible{display:contents}
+
+    /* Action bar at card bottom */
+    .action-bar{display:flex;gap:10px;flex-wrap:wrap;padding:16px 18px;border-top:1px solid var(--border,rgba(0,0,0,.07))}
+
+    /* Card divider */
+    .card-divider{height:1px;background:var(--border,rgba(0,0,0,.07));margin:0}
+
+    /* ── EDIT PANEL ───────────────────────────────────────── */
+    #edit-panel{display:none;margin-top:24px}
+    #edit-panel.visible{display:block}
+    .edit-panel-title{font-size:0.78rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ink3);padding:16px 18px 0}
+    .edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:16px 18px 22px}
+    .edit-group{display:flex;flex-direction:column;gap:5px}
+    .edit-group.full{grid-column:1/-1}
+    .edit-group label{font-size:0.70rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ink3)}
+    .edit-group label .req{color:#e06050;margin-left:2px}
+    .edit-group input,
+    .edit-group select,
+    .edit-group textarea{background:var(--bg2,#f5f5f7);border:1.5px solid var(--border,rgba(0,0,0,.1));border-radius:8px;padding:9px 13px;font-size:0.88rem;font-family:inherit;color:var(--ink1,#1a1a2e);outline:none;transition:border-color .15s;width:100%}
+    .edit-group input:focus,
+    .edit-group select:focus,
+    .edit-group textarea:focus{border-color:var(--accent)}
+    .edit-group textarea{resize:vertical;min-height:80px;line-height:1.6}
+    .edit-group select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' viewBox='0 0 12 12'%3E%3Cpath stroke='%23888' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:calc(100% - 11px) center;padding-right:30px}
+    .field-err{font-size:0.72rem;color:#e06050;min-height:14px}
+
+    /* Priority / Status radio pills */
+    .radio-group{display:flex;gap:8px;flex-wrap:wrap}
+    .radio-opt input{display:none}
+    .radio-opt label{display:flex;align-items:center;justify-content:center;padding:7px 16px;border-radius:20px;font-size:0.72rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border:1.5px solid var(--border,rgba(0,0,0,.1));cursor:pointer;transition:all .15s;color:var(--ink3)}
+    .radio-opt label:hover{border-color:var(--accent);color:var(--accent)}
+    .radio-opt input:checked + label.lo  {background:color-mix(in srgb,#6bba8a 15%,transparent);border-color:#6bba8a;color:#3d8a5a}
+    .radio-opt input:checked + label.med {background:color-mix(in srgb,#e0a040 15%,transparent);border-color:#e0a040;color:#b07820}
+    .radio-opt input:checked + label.hi  {background:color-mix(in srgb,#e06050 15%,transparent);border-color:#e06050;color:#c03a28}
+    .radio-opt input:checked + label.s-open     {background:color-mix(in srgb,#3db37a 15%,transparent);border-color:#3db37a;color:#2a9060}
+    .radio-opt input:checked + label.s-resolved {background:color-mix(in srgb,#5b9bd5 15%,transparent);border-color:#5b9bd5;color:#3a7ab8}
+    .radio-opt input:checked + label.s-overdue  {background:color-mix(in srgb,#e06050 15%,transparent);border-color:#e06050;color:#c03a28}
+
+    /* Resolution fields in edit form */
+    #edit-resolution{display:none}
+    #edit-resolution.visible{display:contents}
+
+    /* Not-found */
+    #not-found{display:none}
+    #not-found.visible{display:block}
+    #issue-body.hidden{display:none}
+
+    /* Toast */
+    .toast{position:fixed;bottom:28px;right:28px;background:var(--ink1,#1a1a2e);color:#fff;border-radius:10px;padding:12px 20px;font-size:0.84rem;opacity:0;transform:translateY(8px);transition:all .25s;z-index:300;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,.18)}
+    .toast.show{opacity:1;transform:translateY(0)}
+
+    /* ── Responsive ─────────────────────────────────────────── */
+    @media(max-width:640px){
+      .detail-grid{grid-template-columns:1fr}
+      .detail-cell.full{grid-column:1}
+      .detail-cell:nth-child(odd):not(.full){border-right:none}
+      .edit-grid{grid-template-columns:1fr}
+      .edit-group.full{grid-column:1}
+      .issue-header{flex-direction:column;gap:10px}
+      #view-summary{font-size:1.05rem}
+      .action-bar{padding:12px 14px}
+    }
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ── Sidebar — identical to every other page ── -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-name">Bug<em>·</em>Tracker</div>
+      <div class="brand-sub">Issue Tracking System</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-group">Issues</div>
+      <a href="index.html"        class="nav-link">◈  Dashboard</a>
+      <a href="create-issue.html" class="nav-link">＋  New Issue</a>
+      <div class="nav-group">Manage</div>
+      <a href="people.html"     class="nav-link">◎  People</a>
+      <a href="projects.html"   class="nav-link">◫  Projects</a>
+      <a href="view-issue.html" class="nav-link active">◉  View Issue</a>
+    </nav>
+    <div class="sidebar-foot">&copy; Group T</div>
+  </aside>
+
+  <!-- ── Main content ── -->
+  <main class="main">
+    <div class="page-header">
+      <div class="breadcrumb">
+        <a href="index.html">Dashboard</a>
+        <span>›</span>
+        <span id="bc-id">Issue</span>
+      </div>
+      <div class="eyebrow">Issues</div>
+      <h1>View Issue</h1>
+    </div>
+
+    <!-- NOT FOUND state -->
+    <div id="not-found">
+      <div class="card" style="text-align:center;padding:40px 24px;">
+        <div style="font-size:2rem;margin-bottom:12px;opacity:.4">◉</div>
+        <div class="card-title">Issue not found</div>
+        <p style="color:var(--ink3);font-size:0.88rem;margin-top:8px;line-height:1.7;">
+          No issue ID was found in the URL, or it doesn't exist in storage.<br>
+          Try opening an issue from the dashboard.
+        </p>
+        <a href="index.html" class="btn" style="display:inline-block;margin-top:20px;">← Back to Dashboard</a>
+      </div>
+    </div>
+
+    <!-- ISSUE BODY -->
+    <div id="issue-body">
+
+      <!-- ── View card ── -->
+      <div class="card" style="padding:0;overflow:hidden;">
+
+        <div style="padding:20px 18px 0;">
+          <div class="issue-header">
+            <div>
+              <span class="issue-id-badge" id="view-id">—</span>
+              <div class="issue-title-row">
+                <span id="view-summary"></span>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+                <span class="chip" id="chip-status">—</span>
+                <span class="chip" id="chip-priority">—</span>
+                <span class="chip chip-project" id="chip-project">—</span>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;">
+              <button class="btn btn-ghost" onclick="history.back()">← Back</button>
+              <button class="btn" id="edit-toggle-btn" onclick="toggleEdit()">✎ Edit</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-divider"></div>
+
+        <div class="detail-grid">
+          <div class="detail-cell">
+            <div class="detail-label">Reported by</div>
+            <div class="detail-value" id="view-reporter">—</div>
+          </div>
+          <div class="detail-cell">
+            <div class="detail-label">Assigned to</div>
+            <div class="detail-value" id="view-assignee">—</div>
+          </div>
+
+          <div class="detail-cell">
+            <div class="detail-label">Date identified</div>
+            <div class="detail-value" id="view-date-identified">—</div>
+          </div>
+          <div class="detail-cell">
+            <div class="detail-label">Target resolution date</div>
+            <div class="detail-value" id="view-target-date">—</div>
+          </div>
+
+          <div class="detail-cell full">
+            <div class="detail-label">Description</div>
+            <div class="detail-value" id="view-description">—</div>
+          </div>
+
+          <!-- Shown only when status = resolved -->
+          <div id="resolution-section">
+            <div class="detail-cell">
+              <div class="detail-label">Actual resolved date</div>
+              <div class="detail-value" id="view-resolved-date">—</div>
+            </div>
+            <div class="detail-cell full">
+              <div class="detail-label">Resolution summary</div>
+              <div class="detail-value" id="view-resolution-summary">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-bar">
+          <button class="btn" onclick="toggleEdit()">✎ Edit this issue</button>
+          <button class="btn btn-ghost" onclick="confirmDelete()" style="color:#e06050;">🗑 Delete</button>
+        </div>
+      </div><!-- /view card -->
+
+      <!-- ── Edit panel card ── -->
+      <div class="card" id="edit-panel" style="padding:0;overflow:hidden;">
+
+        <div class="edit-panel-title">Edit Issue</div>
+        <div class="card-divider" style="margin-top:12px;"></div>
+
+        <div class="edit-grid">
+
+          <div class="edit-group full">
+            <label for="e-summary">Summary <span class="req">*</span></label>
+            <input type="text" id="e-summary" maxlength="120" placeholder="Short description of the issue"/>
+            <div class="field-err" id="err-summary"></div>
+          </div>
+
+          <div class="edit-group full">
+            <label for="e-description">Detailed description</label>
+            <textarea id="e-description" placeholder="Steps to reproduce, expected vs actual behaviour…"></textarea>
+          </div>
+
+          <div class="edit-group">
+            <label for="e-reporter">Reported by <span class="req">*</span></label>
+            <select id="e-reporter"><option value="">Select person…</option></select>
+            <div class="field-err" id="err-reporter"></div>
+          </div>
+
+          <div class="edit-group">
+            <label for="e-date-identified">Date identified <span class="req">*</span></label>
+            <input type="date" id="e-date-identified"/>
+            <div class="field-err" id="err-date-identified"></div>
+          </div>
+
+          <div class="edit-group">
+            <label for="e-project">Project <span class="req">*</span></label>
+            <select id="e-project"><option value="">Select project…</option></select>
+            <div class="field-err" id="err-project"></div>
+          </div>
+
+          <div class="edit-group">
+            <label for="e-assignee">Assigned to</label>
+            <select id="e-assignee"><option value="">Unassigned</option></select>
+          </div>
+
+          <div class="edit-group">
+            <label for="e-target-date">Target resolution date</label>
+            <input type="date" id="e-target-date"/>
+          </div>
+
+          <!-- Spacer (hidden when resolution block shows) -->
+          <div id="edit-spacer"></div>
+
+          <!-- Priority radios -->
+          <div class="edit-group full">
+            <label>Priority <span class="req">*</span></label>
+            <div class="radio-group">
+              <div class="radio-opt"><input type="radio" name="e-priority" id="ep-low"    value="low"   /><label for="ep-low"    class="lo">Low</label></div>
+              <div class="radio-opt"><input type="radio" name="e-priority" id="ep-medium" value="medium"/><label for="ep-medium" class="med">Medium</label></div>
+              <div class="radio-opt"><input type="radio" name="e-priority" id="ep-high"   value="high"  /><label for="ep-high"   class="hi">High</label></div>
+            </div>
+          </div>
+
+          <!-- Status radios -->
+          <div class="edit-group full">
+            <label>Status <span class="req">*</span></label>
+            <div class="radio-group">
+              <div class="radio-opt"><input type="radio" name="e-status" id="es-open"     value="open"    /><label for="es-open"     class="s-open">Open</label></div>
+              <div class="radio-opt"><input type="radio" name="e-status" id="es-resolved" value="resolved"/><label for="es-resolved" class="s-resolved">Resolved</label></div>
+              <div class="radio-opt"><input type="radio" name="e-status" id="es-overdue"  value="overdue" /><label for="es-overdue"  class="s-overdue">Overdue</label></div>
+            </div>
+          </div>
+
+          <!-- Resolution fields — visible only when resolved -->
+          <div id="edit-resolution">
+            <div class="edit-group">
+              <label for="e-resolved-date">Actual resolved date</label>
+              <input type="date" id="e-resolved-date"/>
+            </div>
+            <div class="edit-group full">
+              <label for="e-resolution-summary">Resolution summary</label>
+              <textarea id="e-resolution-summary" style="min-height:65px;" placeholder="What was done to resolve this issue…"></textarea>
+            </div>
+          </div>
+
+        </div><!-- /edit-grid -->
+
+        <div class="action-bar">
+          <button class="btn" id="save-btn" onclick="saveEdits()">💾 Save changes</button>
+          <button class="btn btn-ghost" onclick="cancelEdit()">Cancel</button>
+        </div>
+
+      </div><!-- /edit-panel card -->
+
+    </div><!-- /#issue-body -->
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="storage.js"></script>
+<script>
+// ── Compatibility layer ──────────────────────────────────────────────────────
+// Works with both the original project's storage.js AND the compiled one.
+// Reads from common keys: bt_bugs, bugs (fallback), bt_people, people, etc.
+function _getBugs(){
+  if(typeof getBugs==='function') return getBugs();
+  try{ return JSON.parse(localStorage.getItem('bt_bugs')||localStorage.getItem('bugs')||'[]'); }catch{ return []; }
+}
+function _findBug(id){
+  if(typeof findBug==='function') return findBug(id);
+  if(typeof getBugById==='function') return getBugById(id);
+  return _getBugs().find(b=>b.id===id)||null;
+}
+function _updateBug(id,changes){
+  if(typeof updateBug==='function') return updateBug(id,changes);
+  const bugs=_getBugs(), i=bugs.findIndex(b=>b.id===id);
+  if(i===-1) return null;
+  bugs[i]={...bugs[i],...changes};
+  const key=localStorage.getItem('bt_bugs')!==null?'bt_bugs':'bugs';
+  localStorage.setItem(key,JSON.stringify(bugs));
+  return bugs[i];
+}
+function _deleteBug(id){
+  if(typeof deleteBug==='function'){ deleteBug(id); return; }
+  const bugs=_getBugs().filter(b=>b.id!==id);
+  const key=localStorage.getItem('bt_bugs')!==null?'bt_bugs':'bugs';
+  localStorage.setItem(key,JSON.stringify(bugs));
+}
+function _getPeople(){
+  if(typeof getPeople==='function') return getPeople();
+  try{ return JSON.parse(localStorage.getItem('bt_people')||localStorage.getItem('people')||'[]'); }catch{ return []; }
+}
+function _getProjects(){
+  if(typeof getProjects==='function') return getProjects();
+  try{ return JSON.parse(localStorage.getItem('bt_projects')||localStorage.getItem('projects')||'[]'); }catch{ return []; }
+}
+
+// Run seed / overdue helpers if present
+if(typeof seedIfEmpty==='function') seedIfEmpty();
+if(typeof syncOverdue==='function') syncOverdue();
+
+// ── State ────────────────────────────────────────────────────────────────────
+const params     = new URLSearchParams(window.location.search);
+const bugId      = params.get('id');
+let   currentBug = null;
+let   editOpen   = false;
+
+// ── Boot ─────────────────────────────────────────────────────────────────────
+(function init(){
+  if(!bugId){ showNotFound(); return; }
+  currentBug = _findBug(bugId);
+  if(!currentBug){ showNotFound(); return; }
+
+  renderView(currentBug);
+  populateDropdowns();
+  prefillForm(currentBug);
+
+  // Support ?edit=1 from dashboard "Edit" buttons
+  if(params.get('edit')==='1') toggleEdit();
+})();
+
+// ── Render the view panel ────────────────────────────────────────────────────
+function renderView(bug){
+  document.getElementById('bc-id').textContent   = bug.id;
+  document.getElementById('view-id').textContent = bug.id;
+  document.getElementById('view-summary').textContent = bug.summary || '(no summary)';
+  document.title = `BugTracker: ${bug.id}`;
+
+  // Status chip
+  const sc = document.getElementById('chip-status');
+  sc.className   = `chip chip-${(bug.status||'open').toLowerCase()}`;
+  sc.textContent = bug.status || '—';
+
+  // Priority chip
+  const pc = document.getElementById('chip-priority');
+  pc.className   = `chip chip-${(bug.priority||'medium').toLowerCase()}`;
+  pc.textContent = bug.priority || '—';
+
+  // Project chip
+  const proj = _getProjects().find(p=>p.id===bug.projectId);
+  const projChip = document.getElementById('chip-project');
+  projChip.textContent = proj ? proj.name : (bug.projectId||'—');
+
+  // Detail fields
+  document.getElementById('view-reporter').textContent         = personLabel(bug.reporterId);
+  document.getElementById('view-assignee').textContent         = bug.assigneeId ? personLabel(bug.assigneeId) : 'Unassigned';
+  document.getElementById('view-date-identified').textContent  = fmtDate(bug.dateIdentified);
+  document.getElementById('view-target-date').textContent      = fmtDate(bug.targetDate);
+  document.getElementById('view-description').textContent      = bug.description || '—';
+
+  // Resolution section — only when resolved
+  const resSect = document.getElementById('resolution-section');
+  if(bug.status==='resolved'){
+    resSect.classList.add('visible');
+    document.getElementById('view-resolved-date').textContent      = fmtDate(bug.resolvedDate);
+    document.getElementById('view-resolution-summary').textContent = bug.resolutionSummary||'—';
+  } else {
+    resSect.classList.remove('visible');
+  }
+}
+
+// ── Populate dropdowns ───────────────────────────────────────────────────────
+function populateDropdowns(){
+  const people   = _getPeople();
+  const projects = _getProjects();
+
+  // Reporter + Assignee
+  ['e-reporter','e-assignee'].forEach(selId=>{
+    const sel = document.getElementById(selId);
+    people.forEach(p=>{
+      const o=document.createElement('option');
+      o.value=p.id; o.textContent=`${p.name} ${p.surname}`;
+      sel.appendChild(o);
+    });
+  });
+
+  // Project
+  const pSel = document.getElementById('e-project');
+  projects.forEach(p=>{
+    const o=document.createElement('option');
+    o.value=p.id; o.textContent=p.name;
+    pSel.appendChild(o);
+  });
+}
+
+// ── Pre-fill edit form ───────────────────────────────────────────────────────
+function prefillForm(bug){
+  document.getElementById('e-summary').value              = bug.summary           ||'';
+  document.getElementById('e-description').value          = bug.description       ||'';
+  document.getElementById('e-reporter').value             = bug.reporterId        ||'';
+  document.getElementById('e-date-identified').value      = bug.dateIdentified    ||'';
+  document.getElementById('e-project').value              = bug.projectId         ||'';
+  document.getElementById('e-assignee').value             = bug.assigneeId        ||'';
+  document.getElementById('e-target-date').value          = bug.targetDate        ||'';
+  document.getElementById('e-resolved-date').value        = bug.resolvedDate      ||'';
+  document.getElementById('e-resolution-summary').value   = bug.resolutionSummary ||'';
+
+  const pR = document.querySelector(`input[name="e-priority"][value="${bug.priority}"]`);
+  if(pR) pR.checked = true; else document.getElementById('ep-medium').checked = true;
+
+  const sR = document.querySelector(`input[name="e-status"][value="${bug.status}"]`);
+  if(sR) sR.checked = true; else document.getElementById('es-open').checked = true;
+
+  updateResolutionBlock();
+}
+
+// ── Toggle edit panel open/close ─────────────────────────────────────────────
+function toggleEdit(){
+  editOpen = !editOpen;
+  const panel = document.getElementById('edit-panel');
+  const btn   = document.getElementById('edit-toggle-btn');
+  if(editOpen){
+    panel.classList.add('visible');
+    btn.textContent = '✕ Close edit';
+    panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+  } else {
+    panel.classList.remove('visible');
+    btn.textContent = '✎ Edit';
+    clearErrors();
+  }
+}
+
+function cancelEdit(){
+  editOpen = true;
+  toggleEdit();
+  prefillForm(currentBug); // reset to last saved state
+}
+
+// ── Resolution fields — show only when status = resolved ─────────────────────
+document.querySelectorAll('input[name="e-status"]').forEach(r=>
+  r.addEventListener('change', updateResolutionBlock)
+);
+
+function updateResolutionBlock(){
+  const status  = document.querySelector('input[name="e-status"]:checked')?.value;
+  const block   = document.getElementById('edit-resolution');
+  const spacer  = document.getElementById('edit-spacer');
+  const isResolved = status==='resolved';
+
+  block.classList.toggle('visible', isResolved);
+  spacer.style.display = isResolved ? 'none' : '';
+
+  if(isResolved && !document.getElementById('e-resolved-date').value){
+    document.getElementById('e-resolved-date').value = new Date().toISOString().split('T')[0];
+  }
+}
+
+// ── Validation ───────────────────────────────────────────────────────────────
+function validate(){
+  let ok = true;
+  [
+    {id:'e-summary',        errId:'err-summary',        msg:'Summary is required.'},
+    {id:'e-reporter',       errId:'err-reporter',       msg:'Please select a reporter.'},
+    {id:'e-date-identified',errId:'err-date-identified',msg:'Date identified is required.'},
+    {id:'e-project',        errId:'err-project',        msg:'Please select a project.'},
+  ].forEach(({id,errId,msg})=>{
+    const el=document.getElementById(id);
+    const er=document.getElementById(errId);
+    if(!el.value.trim()){ er.textContent=msg; el.style.borderColor='#e06050'; ok=false; }
+    else { er.textContent=''; el.style.borderColor=''; }
+  });
+  return ok;
+}
+
+function clearErrors(){
+  ['err-summary','err-reporter','err-date-identified','err-project'].forEach(id=>{
+    document.getElementById(id).textContent='';
+  });
+  ['e-summary','e-reporter','e-date-identified','e-project'].forEach(id=>{
+    document.getElementById(id).style.borderColor='';
+  });
+}
+
+// ── Save ─────────────────────────────────────────────────────────────────────
+function saveEdits(){
+  if(!validate()) return;
+
+  const status   = document.querySelector('input[name="e-status"]:checked')?.value   || 'open';
+  const priority = document.querySelector('input[name="e-priority"]:checked')?.value || 'medium';
+
+  const changes = {
+    summary:           document.getElementById('e-summary').value.trim(),
+    description:       document.getElementById('e-description').value.trim(),
+    reporterId:        document.getElementById('e-reporter').value        || null,
+    dateIdentified:    document.getElementById('e-date-identified').value || null,
+    projectId:         document.getElementById('e-project').value         || null,
+    assigneeId:        document.getElementById('e-assignee').value        || null,
+    status,
+    priority,
+    targetDate:        document.getElementById('e-target-date').value     || null,
+    resolvedDate:      status==='resolved' ? (document.getElementById('e-resolved-date').value||null) : null,
+    resolutionSummary: status==='resolved' ? document.getElementById('e-resolution-summary').value.trim() : '',
+  };
+
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+
+  _updateBug(bugId, changes);
+  currentBug = _findBug(bugId);
+
+  renderView(currentBug);
+  cancelEdit();
+
+  btn.disabled = false; btn.textContent = '💾 Save changes';
+  showToast('Issue updated successfully.');
+}
+
+// ── Delete ────────────────────────────────────────────────────────────────────
+function confirmDelete(){
+  if(!confirm(`Delete issue ${bugId}? This action cannot be undone.`)) return;
+  _deleteBug(bugId);
+  showToast('Issue deleted. Returning to dashboard…');
+  setTimeout(()=>{ window.location.href='index.html'; }, 1200);
+}
+
+// ── Not-found ─────────────────────────────────────────────────────────────────
+function showNotFound(){
+  document.getElementById('not-found').classList.add('visible');
+  document.getElementById('issue-body').classList.add('hidden');
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function personLabel(id){
+  if(!id) return '—';
+  const p = _getPeople().find(p=>p.id===id);
+  return p ? `${p.name} ${p.surname}` : id;
+}
+
+function fmtDate(str){
+  if(!str) return '—';
+  const [y,m,d] = str.split('-');
+  if(!y||!m||!d) return str;
+  return `${d}/${m}/${y}`;
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2800);
+}
+
+// Live-clear validation errors
+['e-summary','e-reporter','e-date-identified','e-project'].forEach(id=>{
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.addEventListener('input',()=>{
+    const errId = 'err-'+id.replace('e-','');
+    const err = document.getElementById(errId);
+    if(err) err.textContent='';
+    el.style.borderColor='';
+  });
+});
+</script>
+</body>
+</html>
