@@ -303,8 +303,7 @@ This ensures the app is never blank during the presentation.
 
 4. **Create a new repo on GitHub and link it** — Go to [github.com/new](https://github.com/new) to create a new repository, then run:
    ```bash
-   git remote add origin [https://github.com/YOUR_USERNAME/bugtracker.git](https://wpr2781-wq.github.io/Bug-Track-2781/)
-   ```
+   git remote add origin [https://wpr2781-wq.github.io/Bug-Track-2781/]
 
 5. **Push to GitHub** — Run `git push -u origin main` to push your commits to GitHub.
 
